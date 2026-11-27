@@ -1,5 +1,4 @@
 import os, glob
-from tenacity import retry, stop_after_attempt, wait_exponential
 from pypdf import PdfReader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from sentence_transformers import SentenceTransformer
@@ -8,10 +7,11 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
 
 load_dotenv()
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-MODEL = "gemini-3.8-flash"
+MODELS = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.7-flash", "gemini-3.8-flash"]
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
 db = chromadb.PersistentClient(path="chroma_db")
 
@@ -62,18 +62,36 @@ If the context does not contain the answer, set found=false, sources=[] and answ
 "I don't have enough information." Never use outside knowledge."""
 
 
-@retry(stop=stop_after_attempt(5), wait=wait_exponential(min=3, max=30), reraise=True)
-def call_llm(contents):
+def _retryable(e):
+    msg = str(e)
+    return not ("429" in msg or "RESOURCE_EXHAUSTED" in msg)
+
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=3, max=15),
+       retry=retry_if_exception(_retryable), reraise=True)
+def _call(model, contents):
     return client.models.generate_content(
-        model=MODEL,
+        model=model,
         contents=contents,
         config=types.GenerateContentConfig(
             system_instruction=SYSTEM,
             response_mime_type="application/json",
             response_schema=Answer,
             temperature=0,
+            http_options=types.HttpOptions(timeout=30000),
         ),
     )
+
+
+def call_llm(contents):
+    last = None
+    for m in MODELS:
+        try:
+            return _call(m, contents)
+        except Exception as e:
+            print(f"[{m} failed: {str(e)[:60]}] trying next model...")
+            last = e
+    raise last
 
 
 def ask(q, k=4, max_dist=0.65):
@@ -86,13 +104,13 @@ def ask(q, k=4, max_dist=0.65):
 
 
 if __name__ == "__main__":
-    build_index()
-    questions = [
-        "How many casual leaves do I get?",
-        "Can I work from home?",
-        "What is the meal limit during travel?",
-        "Who won the 2022 World Cup?",
-    ]
-    for q in questions:
+    import sys
+    if "--rebuild" in sys.argv or not os.path.exists("chroma_db"):
+        build_index()
+    print("Ask a question (type 'exit' to quit)")
+    while True:
+        q = input("\nQ: ").strip()
+        if q.lower() in ("exit", "quit"):
+            break
         o = ask(q)
-        print(f"\nQ: {q}\nA: {o['answer']}\nSources: {o['sources']}")
+        print(f"A: {o['answer']}\nSources: {o['sources']}")
