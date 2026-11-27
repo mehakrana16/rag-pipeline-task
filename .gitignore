@@ -2,3 +2,5 @@
 venv/
 chroma_db/
 __pycache__/
+test_cache.json
+docs/Backpropagation.pdf
