@@ -94,7 +94,7 @@ def call_llm(contents):
     raise last
 
 
-def ask(q, k=4, max_dist=0.65):
+def ask(q, k=6, max_dist=0.65):
     chunks = [c for c in retrieve(q, k) if c["dist"] <= max_dist]
     if not chunks:
         return {"answer": "I don't have enough information.", "sources": [], "found": False}

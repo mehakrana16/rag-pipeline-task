@@ -1,9 +1,9 @@
 Question,Expected,Actual answer,Source,Result,Seconds
-What does the add gate do during backpropagation?,equally,"During backpropagation, the add gate always takes the gradient on its output and distributes it equally to all of its inputs, regardless of their values during the forward pass. This happens because the local gradient for the addition operation is +1.0, so the gradients on all inputs exactly equal the gradients on the output.","Backpropagation.pdf (page 9), Backpropagation.pdf (page 5)",PASS,2.3
-What does the max gate do in the backward pass?,higher,"The max gate routes the gradient (unchanged) to exactly one of its inputs, specifically the input that had the highest value during the forward pass.",Backpropagation.pdf (page 9),FAIL,4.1
-"In the example f = (x+y)z with x=-2, y=5, z=-4, what is f?",-12,f becomes -12,Backpropagation.pdf (page 3),PASS,1.1
-Why do we use += instead of = in backprop?,add,I don't have enough information.,none,FAIL,3.7
-How is dW computed for matrix multiplication?,X.T,dW is computed as dD.dot(X.T).,Backpropagation.pdf (page 10),PASS,5.6
+What does the add gate do during backpropagation?,equally,"During backpropagation, the add gate always takes the gradient on its output and distributes it equally to all of its inputs, regardless of their values during the forward pass. This happens because the local gradient for the addition operation is +1.0, so the gradients on all inputs exactly equal the gradients on the output.","Backpropagation.pdf (page 9), Backpropagation.pdf (page 5)",PASS,0.0
+What does the max gate do in the backward pass?,highest,"The max gate routes the gradient (unchanged) to exactly one of its inputs, specifically the input that had the highest value during the forward pass.",Backpropagation.pdf (page 9),PASS,0.0
+"In the example f = (x+y)z with x=-2, y=5, z=-4, what is f?",-12,f becomes -12,Backpropagation.pdf (page 3),PASS,0.0
+Why do we use += instead of = in backprop?,accumulate,"We use += instead of = during backpropagation because the forward expression involves the variables multiple times (or branches out to different parts of the circuit), so we must accumulate the gradient on these variables to avoid overwriting it, following the multivariable chain rule in calculus.",Backpropagation.pdf (page 8),PASS,0.0
+How is dW computed for matrix multiplication?,X.T,dW is computed as dD.dot(X.T).,Backpropagation.pdf (page 10),PASS,0.0
 What is the price of the Pro plan?,499,The Pro plan costs Rs 499 per month.,product_faq.md (full document),PASS,0.0
 How often do I need to change my password?,90,Passwords must be changed every 90 days.,it_security.md (full document),PASS,0.0
 How long is the probation period?,3 month,Probation period is 3 months.,onboarding.md (full document),PASS,0.0

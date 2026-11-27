@@ -6,9 +6,9 @@ cache = json.load(open(CACHE)) if os.path.exists(CACHE) else {}
 
 TESTS = [
     ("What does the add gate do during backpropagation?", "equally", "Backpropagation.pdf"),
-    ("What does the max gate do in the backward pass?", "higher", "Backpropagation.pdf"),
+    ("What does the max gate do in the backward pass?", "highest", "Backpropagation.pdf"),
     ("In the example f = (x+y)z with x=-2, y=5, z=-4, what is f?", "-12", "Backpropagation.pdf"),
-    ("Why do we use += instead of = in backprop?", "add", "Backpropagation.pdf"),
+    ("Why do we use += instead of = in backprop?", "accumulate", "Backpropagation.pdf"),
     ("How is dW computed for matrix multiplication?", "X.T", "Backpropagation.pdf"),
     ("What is the price of the Pro plan?", "499", "product_faq.md"),
     ("How often do I need to change my password?", "90", "it_security.md"),

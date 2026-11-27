@@ -8,7 +8,7 @@
 ![Gemini](https://img.shields.io/badge/LLM-Gemini-4285F4?logo=google&logoColor=white)
 ![ChromaDB](https://img.shields.io/badge/Vector%20DB-Chroma-FF6F00)
 ![Embeddings](https://img.shields.io/badge/Embeddings-all--MiniLM--L6--v2-8A2BE2)
-![Tests](https://img.shields.io/badge/Tests-passing-2EA44F)
+![Tests](https://img.shields.io/badge/Tests-13%2F13%20passing-2EA44F)
 ![Status](https://img.shields.io/badge/Task%202-Complete-2EA44F)
 
 </div>
@@ -45,7 +45,7 @@ flowchart LR
 
     subgraph QRY["2. Query (every question)"]
         Q[❓ Question] --> QE[🧠 Embed]
-        QE --> R[🔍 Top-4 similar chunks]
+        QE --> R[🔍 Top-6 similar chunks]
         E -.-> R
         R --> F{Distance<br/>≤ 0.65?}
         F -- No --> X[🛑 I don't have<br/>enough information]
@@ -83,10 +83,12 @@ A: The Pro plan costs Rs 499 per month.
 Sources: ['product_faq.md (full document)']
 
 Q: What does the add gate do during backpropagation?
-A: During backpropagation, the add gate takes the gradient on its output and
-   distributes it equally and unchanged to all of its inputs, regardless of what
-   their values were during the forward pass.
-Sources: ['Backpropagation.pdf (page 9)']
+A: During backpropagation, the add gate always takes the gradient on its output and
+   distributes it equally to all of its inputs, regardless of their values during
+   the forward pass. This happens because the local gradient for the addition
+   operation is +1.0, so the gradients on all inputs exactly equal the gradients
+   on the output.
+Sources: ['Backpropagation.pdf (page 9)', 'Backpropagation.pdf (page 5)']
 
 Q: Who won the 2022 World Cup?
 A: I don't have enough information.
@@ -126,7 +128,7 @@ After the first build, just run `python rag.py` to reuse the existing index. Run
 |---|---|---|---|
 | `chunk_size` | `800` | `build_index()` | Max characters per chunk |
 | `overlap` | `120` | `build_index()` | Characters shared between neighbouring chunks |
-| `k` | `4` | `ask()` | Number of chunks retrieved |
+| `k` | `6` | `ask()` | Number of chunks retrieved (raised from 4, see the retrieval miss below) |
 | `max_dist` | `0.65` | `ask()` | Relevance cutoff. Raise it if valid questions get refused, lower it if out-of-scope questions get answered |
 | `MODELS` | `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`, `gemini-3.7-flash`, `gemini-3.8-flash` | top of `rag.py` | Models tried in order. If one fails (quota, outage), the next one is used |
 | timeout | `30 s` | `_call()` | Per-request limit so a stuck call fails fast and is retried |
@@ -137,7 +139,7 @@ After the first build, just run `python rag.py` to reuse the existing index. Run
 
 ## 🧪 Test results
 
-Run the automated suite with `python test_rag.py`. Results are saved to `test_results.csv`, and answers are cached in `test_cache.json` so already-passed questions are not sent to the API again.
+Run the automated suite with `python test_rag.py`. Results are saved to `test_results.csv`, and answers are cached in `test_cache.json` so already-passed questions are not sent to the API again. To see which chunks a question retrieves and how close they are, run `python debug_retrieval.py "your question"`.
 
 | # | Question | Expected | Answer | Source | Result |
 |---|---|---|---|---|---|
@@ -147,15 +149,26 @@ Run the automated suite with `python test_rag.py`. Results are saved to `test_re
 | 4 | How many casual leaves do I get? | 12 per year | Employees get 12 casual leaves per year. | `leave_policy.md` | ✅ |
 | 5 | Can I work from home? | 2 days/week with approval | Employees can work from home up to 2 days per week with manager approval. | `work_hours.md` | ✅ |
 | 6 | What is the meal limit during travel? | Rs 800/day | Meal expenses are reimbursed during official travel up to Rs 800 per day. | `expenses.md` | ✅ |
-| 7 | What does the add gate do during backpropagation? | Distributes gradient equally | The add gate distributes the gradient equally and unchanged to all of its inputs. | `Backpropagation.pdf (page 9)` | ✅ |
-| 8 | Who is the CEO of Google? | Refusal | I don't have enough information. | none | ✅ |
-| 9 | Who won the 2022 World Cup? | Refusal | I don't have enough information. | none | ✅ |
+| 7 | What does the add gate do during backpropagation? | Distributes gradient equally | The add gate distributes the gradient equally to all of its inputs, regardless of their forward-pass values. | `Backpropagation.pdf (page 9)` | ✅ |
+| 8 | What does the max gate do in the backward pass? | Routes gradient to highest input | The max gate routes the gradient unchanged to exactly one input, the one with the highest value. | `Backpropagation.pdf (page 9)` | ✅ |
+| 9 | In the example f = (x+y)z with x=-2, y=5, z=-4, what is f? | -12 | f becomes -12 | `Backpropagation.pdf (page 3)` | ✅ |
+| 10 | Why do we use += instead of = in backprop? | Gradients must accumulate at forks | Because the variable branches out to different parts of the circuit, gradients must be accumulated to avoid overwriting them. | `Backpropagation.pdf (page 8)` | ✅ |
+| 11 | How is dW computed for matrix multiplication? | dD.dot(X.T) | dW is computed as dD.dot(X.T). | `Backpropagation.pdf (page 10)` | ✅ |
+| 12 | Who is the CEO of Google? | Refusal | I don't have enough information. | none | ✅ |
+| 13 | Who won the 2022 World Cup? | Refusal | I don't have enough information. | none | ✅ |
 
 **Corpus used for testing:** 6 short Markdown documents (HR leave, work hours, expenses, product FAQ, IT security, onboarding) plus an 11-page machine learning PDF, which together produce 44 chunks. The PDF checks that page-level citations work on real multi-page documents.
 
 ---
 
 ## 🛠️ Problems hit while building (and how they were fixed)
+
+<details>
+<summary><b>Retrieval miss: relevant chunk ranked too low</b></summary>
+
+The question "Why do we use += instead of = in backprop?" was refused even though the answer is on page 8 of the PDF. Debugging the retrieval (`debug_retrieval.py`) showed that the right chunk was ranked 6th (distance 0.54), while the pipeline only passed the top 4 chunks to the LLM, so the model correctly said it had no answer. Symbols like `+=` carry little meaning for the embedding model, which weakens the ranking: the same question in plain words ("Why do gradients add up at forks?") ranked that chunk 1st (distance 0.34). Raising `k` from 4 to 6 fixed it, at the cost of a slightly longer prompt. A reranker or hybrid keyword search would be the next improvement.
+
+</details>
 
 <details>
 <summary><b>404 NOT_FOUND: model no longer available</b></summary>
@@ -205,15 +218,16 @@ The index stores filenames inside Chroma, so adding or renaming a file in `docs/
 
 ```text
 .
-├── docs/                 # Source documents (PDF, .md, .txt)
-├── rag.py                # Ingestion, chunking, indexing, retrieval, generation, CLI
-├── test_rag.py           # Automated test suite (writes test_results.csv)
-├── test_api.py           # Quick check that the API key and model work
-├── test_results.csv      # Latest test run
+├── docs/                   # Source documents (PDF, .md, .txt)
+├── rag.py                  # Ingestion, chunking, indexing, retrieval, generation, CLI
+├── test_rag.py             # Automated test suite (writes test_results.csv)
+├── debug_retrieval.py      # Shows retrieved chunks and distances for a question
+├── test_api.py             # Quick check that the API key and model work
+├── test_results.csv        # Latest test run
 ├── requirements.txt
-├── .env                  # GEMINI_API_KEY (git-ignored)
-├── test_cache.json       # Cached test answers (git-ignored)
-└── chroma_db/            # Persisted vector index (git-ignored, auto-created)
+├── .env                    # GEMINI_API_KEY (git-ignored)
+├── test_cache.json         # Cached test answers (git-ignored)
+└── chroma_db/              # Persisted vector index (git-ignored, auto-created)
 ```
 
 ---
@@ -225,15 +239,15 @@ The index stores filenames inside Chroma, so adding or renaming a file in `docs/
 - [x] Embeddings indexed in a local vector database (ChromaDB)
 - [x] Retrieval + generation chain with source citations and an explicit *"I don't have enough information"* refusal
 
-**Verification from the brief:** the system retrieves relevant chunks, cites the exact source document (and page for PDFs), and refuses to hallucinate on out-of-scope questions. This is covered by the test table above.
+**Verification from the brief:** the system retrieves relevant chunks, cites the exact source document (and page for PDFs), and refuses to hallucinate on out-of-scope questions. This is covered by the test table above (13/13 passing).
 
 ---
 
 ## ⚠️ Limitations and next steps
 
-- Retrieval uses semantic search only. Adding hybrid keyword + semantic search or a reranker would help on exact-term queries.
+- Retrieval uses semantic search only. Adding hybrid keyword + semantic search or a reranker would help on exact-term and symbol-heavy queries.
 - Quality is currently checked with a small hand-written test set. A larger golden dataset with Hit Rate / Recall@K and a faithfulness check would measure it more rigorously.
-- Chunk size and `max_dist` were set by hand and can be tuned against such a dataset.
+- Chunk size, `k` and `max_dist` were tuned by hand and can be tuned against such a dataset.
 - Scanned PDFs (images without selectable text) are not supported, because text is extracted with `pypdf` and there is no OCR step.
 
 ---
