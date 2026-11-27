@@ -19,7 +19,7 @@ TESTS = [
     ("Who is the CEO of Google?", None, None),
     ("Who won the 2022 World Cup?", None, None),
 ]
-
+ 
 rows = []
 for q, kw, src in TESTS:
     start = time.time()
